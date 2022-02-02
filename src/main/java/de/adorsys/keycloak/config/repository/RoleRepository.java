@@ -68,7 +68,23 @@ public class RoleRepository {
 
     public void createRealmRole(String realmName, RoleRepresentation role) {
         RolesResource rolesResource = realmRepository.getResource(realmName).roles();
-        rolesResource.create(role);
+        RoleRepresentation toUpdate;
+        // on keycloak versions 15.1.1 and 16.1.0 the behaviour of the api changed, throws an 404 for composite roles
+        // where the referenced roles don't exist and it no longer fails silently and just create a base role.
+        // now if the new role is a composite role and the referenced roles don't exist we first need to create a base role
+        // and then via the POST /{realm}/clients/{id}/roles/{role-name}/composites api add the composites
+        if (role.isComposite()) {
+            toUpdate = new RoleRepresentation();
+            toUpdate.setName(role.getName());
+            toUpdate.setDescription(role.getDescription());
+            toUpdate.setComposite(role.isComposite());
+            toUpdate.setClientRole(role.getClientRole());
+            toUpdate.setContainerId(role.getContainerId());
+            toUpdate.setAttributes(role.getAttributes());
+        } else {
+            toUpdate = role;
+        }
+        rolesResource.create(toUpdate);
     }
 
     public void updateRealmRole(String realmName, RoleRepresentation roleToUpdate) {
